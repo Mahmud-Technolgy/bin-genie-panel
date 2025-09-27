@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      api_calls: {
+        Row: {
+          bin: string
+          created_at: string
+          credits_used: number
+          error_message: string | null
+          id: string
+          quantity: number
+          response_data: Json | null
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          bin: string
+          created_at?: string
+          credits_used?: number
+          error_message?: string | null
+          id?: string
+          quantity: number
+          response_data?: Json | null
+          success?: boolean
+          user_id: string
+        }
+        Update: {
+          bin?: string
+          created_at?: string
+          credits_used?: number
+          error_message?: string | null
+          id?: string
+          quantity?: number
+          response_data?: Json | null
+          success?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          credits: number
+          email: string | null
+          full_name: string | null
+          id: string
+          is_admin: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_admin?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_admin?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
