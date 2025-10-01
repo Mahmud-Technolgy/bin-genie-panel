@@ -13,6 +13,8 @@ import { z } from 'zod';
 
 const binSchema = z.string().regex(/^\d{6,}$/, "BIN must be at least 6 digits");
 const quantitySchema = z.number().min(1, "Quantity must be at least 1").max(50, "Quantity cannot exceed 50");
+const monthSchema = z.number().min(1, "Month must be between 1-12").max(12, "Month must be between 1-12");
+const yearSchema = z.number().min(2025, "Year must be 2025 or later").max(2035, "Year cannot exceed 2035");
 
 interface UserProfile {
   id: string;
@@ -40,6 +42,8 @@ const Dashboard = () => {
   const [recentCalls, setRecentCalls] = useState<ApiCall[]>([]);
   const [bin, setBin] = useState('');
   const [quantity, setQuantity] = useState(10);
+  const [month, setMonth] = useState(12);
+  const [year, setYear] = useState(2028);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiUrl, setApiUrl] = useState('https://cc.yeasirar.xyz/gen');
@@ -138,6 +142,16 @@ const Dashboard = () => {
       newErrors.quantity = quantityResult.error.errors[0].message;
     }
 
+    const monthResult = monthSchema.safeParse(month);
+    if (!monthResult.success) {
+      newErrors.month = monthResult.error.errors[0].message;
+    }
+
+    const yearResult = yearSchema.safeParse(year);
+    if (!yearResult.success) {
+      newErrors.year = yearResult.error.errors[0].message;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -158,7 +172,7 @@ const Dashboard = () => {
 
     try {
       // Make API call to external service
-      const response = await fetch(`${apiUrl}?bin=${bin}&qty=${quantity}`);
+      const response = await fetch(`${apiUrl}?bin=${bin}&qty=${quantity}&mon=${month}&yr=${year}`);
       const responseData = await response.json();
 
       const success = response.ok;
@@ -273,7 +287,7 @@ const Dashboard = () => {
                     <Input
                       id="bin"
                       type="text"
-                      placeholder="e.g., 515462"
+                      placeholder="e.g., 401658"
                       value={bin}
                       onChange={(e) => setBin(e.target.value)}
                       className={errors.bin ? "border-destructive" : ""}
@@ -296,6 +310,40 @@ const Dashboard = () => {
                     />
                     {errors.quantity && (
                       <p className="text-sm text-destructive">{errors.quantity}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="month">Expiry Month</Label>
+                    <Input
+                      id="month"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={month}
+                      onChange={(e) => setMonth(parseInt(e.target.value) || 1)}
+                      className={errors.month ? "border-destructive" : ""}
+                      placeholder="1-12"
+                    />
+                    {errors.month && (
+                      <p className="text-sm text-destructive">{errors.month}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="year">Expiry Year</Label>
+                    <Input
+                      id="year"
+                      type="number"
+                      min="2025"
+                      max="2035"
+                      value={year}
+                      onChange={(e) => setYear(parseInt(e.target.value) || 2025)}
+                      className={errors.year ? "border-destructive" : ""}
+                      placeholder="e.g., 2028"
+                    />
+                    {errors.year && (
+                      <p className="text-sm text-destructive">{errors.year}</p>
                     )}
                   </div>
                 </div>
