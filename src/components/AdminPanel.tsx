@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Users, Activity, CreditCard, Plus } from 'lucide-react';
+import { Shield, Users, Activity, CreditCard, Plus, Settings, Save } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -27,6 +27,13 @@ interface ApiCallStats {
   total_credits_used: number;
 }
 
+interface ApiSetting {
+  id: string;
+  setting_key: string;
+  setting_value: string;
+  description: string | null;
+}
+
 const AdminPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -36,10 +43,13 @@ const AdminPanel = () => {
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [creditsToAdd, setCreditsToAdd] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiSettings, setApiSettings] = useState<ApiSetting[]>([]);
+  const [editingSettings, setEditingSettings] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchUsers();
     fetchStats();
+    fetchApiSettings();
   }, []);
 
   const fetchUsers = async () => {
@@ -153,7 +163,7 @@ const AdminPanel = () => {
         description: `User ${!currentAdminStatus ? 'granted' : 'removed'} admin access`,
       });
 
-      fetchUsers(); // Refresh the user list
+      fetchUsers();
     } catch (error) {
       console.error('Error updating admin status:', error);
       toast({
@@ -161,6 +171,94 @@ const AdminPanel = () => {
         description: "Failed to update admin status",
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchApiSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('api_settings')
+        .select('*')
+        .order('setting_key', { ascending: true });
+
+      if (error) throw error;
+      setApiSettings(data || []);
+      
+      const initialValues: Record<string, string> = {};
+      data?.forEach(setting => {
+        initialValues[setting.setting_key] = setting.setting_value;
+      });
+      setEditingSettings(initialValues);
+    } catch (error) {
+      console.error('Error fetching API settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load API settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateApiSetting = async (settingKey: string) => {
+    try {
+      const { error } = await supabase
+        .from('api_settings')
+        .update({ setting_value: editingSettings[settingKey] })
+        .eq('setting_key', settingKey);
+
+      if (error) throw error;
+
+      toast({
+        title: "Setting updated",
+        description: "API setting has been updated successfully",
+      });
+
+      fetchApiSettings();
+    } catch (error) {
+      console.error('Error updating API setting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update API setting",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const setCreditsToAmount = async (userId: string, amount: number) => {
+    if (amount < 0) {
+      toast({
+        title: "Invalid input",
+        description: "Credits cannot be negative",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ credits: amount })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Credits updated",
+        description: `Credits set to ${amount}`,
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error setting credits:', error);
+      toast({
+        title: "Error",
+        description: "Failed to set credits",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -212,15 +310,61 @@ const AdminPanel = () => {
         </div>
       )}
 
+      {/* API Settings */}
+      <Card className="bg-gradient-card border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary" />
+            API Configuration
+          </CardTitle>
+          <CardDescription>
+            Manage API endpoints and settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {apiSettings.map((setting) => (
+              <div key={setting.id} className="space-y-2">
+                <Label htmlFor={setting.setting_key}>
+                  {setting.setting_key.replace(/_/g, ' ').toUpperCase()}
+                </Label>
+                {setting.description && (
+                  <p className="text-xs text-muted-foreground">{setting.description}</p>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    id={setting.setting_key}
+                    value={editingSettings[setting.setting_key] || ''}
+                    onChange={(e) => setEditingSettings({
+                      ...editingSettings,
+                      [setting.setting_key]: e.target.value
+                    })}
+                    placeholder="Enter API URL"
+                  />
+                  <Button
+                    onClick={() => updateApiSetting(setting.setting_key)}
+                    disabled={editingSettings[setting.setting_key] === setting.setting_value}
+                    size="sm"
+                    className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
+                  >
+                    <Save className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Credit Management */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" />
-            Add Credits
+            Credit Management
           </CardTitle>
           <CardDescription>
-            Add credits to user accounts
+            Add or set credits for user accounts
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -246,7 +390,7 @@ const AdminPanel = () => {
               <Input
                 id="credits"
                 type="number"
-                min="1"
+                min="0"
                 value={creditsToAdd}
                 onChange={(e) => setCreditsToAdd(parseInt(e.target.value) || 0)}
                 placeholder="Amount"
@@ -257,7 +401,14 @@ const AdminPanel = () => {
               disabled={isLoading || !selectedUser || creditsToAdd <= 0}
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
             >
-              {isLoading ? "Adding..." : "Add Credits"}
+              Add
+            </Button>
+            <Button
+              onClick={() => selectedUser && setCreditsToAmount(selectedUser, creditsToAdd)}
+              disabled={isLoading || !selectedUser || creditsToAdd < 0}
+              variant="outline"
+            >
+              Set
             </Button>
           </div>
         </CardContent>

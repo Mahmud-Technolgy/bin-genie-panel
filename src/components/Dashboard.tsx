@@ -42,13 +42,32 @@ const Dashboard = () => {
   const [quantity, setQuantity] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiUrl, setApiUrl] = useState('https://cc.yeasirar.xyz/gen');
 
   useEffect(() => {
     if (user) {
       fetchProfile();
       fetchRecentCalls();
+      fetchApiUrl();
     }
   }, [user]);
+
+  const fetchApiUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('api_settings')
+        .select('setting_value')
+        .eq('setting_key', 'api_base_url')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data?.setting_value) {
+        setApiUrl(data.setting_value);
+      }
+    } catch (error) {
+      console.error('Error fetching API URL:', error);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -139,7 +158,7 @@ const Dashboard = () => {
 
     try {
       // Make API call to external service
-      const response = await fetch(`https://cc.yeasirar.xyz/gen?bin=${bin}&qty=${quantity}`);
+      const response = await fetch(`${apiUrl}?bin=${bin}&qty=${quantity}`);
       const responseData = await response.json();
 
       const success = response.ok;
